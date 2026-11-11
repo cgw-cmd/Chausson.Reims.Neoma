@@ -95,6 +95,10 @@
             hintSub: 'to decode today’s menu',
             decoded: 'Decoded!',
             revealBtn: 'Skip & reveal',
+            ctaReveal: 'Hungry yet?',
+            bookBtn: 'Book a table',
+            directionsBtn: 'Get directions',
+            followBtn: 'Follow us, join our community',
             resetBtn: 'Wipe again',
             shareBtn: 'Share the slate',
             sectionSweet: 'The Sweet Side',
@@ -140,6 +144,10 @@
             hintSub: 'pour découvrir le menu',
             decoded: 'Décodé !',
             revealBtn: 'Tout révéler',
+            ctaReveal: 'Ça vous donne faim ?',
+            bookBtn: 'Réserver une table',
+            directionsBtn: 'Itinéraire',
+            followBtn: 'Suivez-nous, rejoignez la communauté',
             resetBtn: 'Recommencer',
             shareBtn: 'Partager l’ardoise',
             sectionSweet: 'Côté sucré',
@@ -198,6 +206,7 @@
         menu: document.getElementById('secret-menu'),
         progressBar: document.getElementById('progress-bar'),
         revealBtn: document.getElementById('reveal-btn'),
+        revealCta: document.getElementById('reveal-cta'),
         resetBtn: document.getElementById('reset-btn'),
         shareBtn: document.getElementById('share-btn'),
         date: document.getElementById('today-date'),
@@ -822,6 +831,11 @@
         els.container.classList.add('is-scratching', 'is-revealed');
         els.revealBtn.classList.add('is-hidden');
         els.resetBtn.classList.remove('is-hidden');
+        if (els.revealCta) {
+            els.revealCta.classList.add('is-visible');
+            els.revealCta.setAttribute('aria-hidden', 'false');
+        }
+        track('slate_revealed');
 
         vibrate([12, 50, 20]);
         showToast(I18N[state.lang].revealedToast);
@@ -846,9 +860,26 @@
         els.progressBar.style.transform = 'scaleX(0)';
         els.resetBtn.classList.add('is-hidden');
         els.revealBtn.classList.remove('is-hidden');
+        if (els.revealCta) {
+            els.revealCta.classList.remove('is-visible');
+            els.revealCta.setAttribute('aria-hidden', 'true');
+        }
 
         sizeCanvas(true);
         els.container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    /* -----------------------------------------------------
+       11b. CLICK TRACKING (for the campaign KPIs)
+       Sends events to Google Analytics / Tag Manager if the café's site has it
+       (window.dataLayer); otherwise does nothing.
+       ----------------------------------------------------- */
+    function track(name) {
+        try {
+            if (window.dataLayer && typeof window.dataLayer.push === 'function') {
+                window.dataLayer.push({ event: name, campaign: 'daily_chausson_moment', lang: state.lang });
+            }
+        } catch (e) { /* never block the page */ }
     }
 
     /* -----------------------------------------------------
@@ -953,6 +984,13 @@
         els.revealBtn.addEventListener('click', reveal);
         els.resetBtn.addEventListener('click', resetBoard);
         els.shareBtn.addEventListener('click', share);
+
+        var tracked = document.querySelectorAll('[data-track]');
+        for (var t = 0; t < tracked.length; t++) {
+            tracked[t].addEventListener('click', function () {
+                track(this.getAttribute('data-track'));
+            });
+        }
 
         for (var i = 0; i < els.langBtns.length; i++) {
             els.langBtns[i].addEventListener('click', function () {

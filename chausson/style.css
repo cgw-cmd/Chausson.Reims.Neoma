@@ -893,6 +893,43 @@ a {
     flex: none;
 }
 
+/* ---------- After-reveal call to action ---------- */
+.reveal-cta {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    padding: 18px 16px 20px;
+    border-radius: 22px;
+    background: var(--cream);
+    box-shadow: 0 14px 30px -18px rgba(13, 59, 42, 0.55);
+}
+
+.reveal-cta.is-visible {
+    display: flex;
+    animation: itemIn 0.6s 0.2s var(--ease-out) both;
+}
+
+.reveal-cta-title {
+    font-family: var(--font-display);
+    font-variation-settings: "SOFT" 100, "WONK" 1, "opsz" 144;
+    font-weight: 900;
+    font-size: 24px;
+    line-height: 1.1;
+    text-align: center;
+    color: var(--green);
+    margin-bottom: 2px;
+}
+
+.btn-big {
+    min-height: 58px;
+    font-size: 18px;
+}
+
+.btn-soft {
+    background: var(--blush);
+    color: var(--green);
+}
+
 .is-hidden {
     display: none;
 }
@@ -1051,7 +1088,7 @@ a {
 .toast {
     position: fixed;
     left: 50%;
-    bottom: calc(24px + var(--safe-bottom));
+    top: calc(16px + var(--safe-top));
     z-index: 50;
     max-width: calc(100% - 40px);
     padding: 12px 20px;
@@ -1063,7 +1100,7 @@ a {
     box-shadow: 0 12px 30px rgba(13, 59, 42, 0.4);
     opacity: 0;
     pointer-events: none;
-    transform: translate(-50%, 16px);
+    transform: translate(-50%, -16px);
     transition: opacity 0.3s ease, transform 0.35s var(--ease-out);
 }
 
