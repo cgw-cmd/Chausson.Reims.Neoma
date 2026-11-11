@@ -55,6 +55,7 @@ html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
     overflow-x: hidden;
+    overscroll-behavior: none;    /* no rubber-band bounce or pull-to-refresh while wiping */
     background: var(--blush);
 }
 

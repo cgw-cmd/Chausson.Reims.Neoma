@@ -878,6 +878,14 @@
             c.addEventListener('pointerup', onPointerUp);
             c.addEventListener('pointercancel', onPointerUp);
             c.addEventListener('lostpointercapture', onPointerUp);
+
+            // iPhone Safari ignores `touch-action: none`, so the page would scroll while
+            // wiping. Cancelling the touch events stops the scroll; pointer events still fire.
+            var blockScroll = function (e) {
+                if (!state.revealed && e.cancelable) e.preventDefault();
+            };
+            c.addEventListener('touchstart', blockScroll, { passive: false });
+            c.addEventListener('touchmove', blockScroll, { passive: false });
         } else {
             // Legacy fallback (very old iOS) — map touch to the same handlers
             var wrap = function (handler) {
