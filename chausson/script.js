@@ -86,8 +86,8 @@
     // Interface strings
     var I18N = {
         en: {
-            pageTitle: 'Chausson Reims — Chalkboard Decoder',
-            eyebrow: 'Vegetarian tearoom & cantine · Reims',
+            pageTitle: 'Your Daily Chausson Moment — Today’s Slate',
+            eyebrow: 'Your Daily Chausson Moment',
             heroTitle: 'Today’s Slate',
             instruction: 'Chalked fresh every morning, in French. Wipe the slate with your finger to decode it.',
             ringText: 'WIPE ME · WIPE ME · WIPE ME · ',
@@ -115,15 +115,15 @@
             perk2Text: 'Gluten-free & vegan options',
             perk3Title: '24h only',
             perk3Text: 'A new slate tomorrow',
-            ctaTitle: 'Watch the chef chalk it live',
-            igLink: '@chaussonreims on IG Stories',
+            ctaTitle: 'Follow us for tomorrow’s slate',
+            igLink: '@chaussonreims on Instagram',
             visitTitle: 'Come say bonjour',
             hours: 'Mon, Tue, Fri, Sat & Sun · 11:00–19:00',
             brunch: 'Weekend brunch · 11:00 or 13:30',
             footnote: 'Menu changes daily · Prices incl. VAT · Ask us about allergens',
             tagline: 'La gourmandise, ça se partage !',
             canvasLabel: 'Photo of today’s chalkboard, handwritten in French. Wipe to reveal the English menu.',
-            shareTitle: 'Chausson Reims — today’s slate',
+            shareTitle: 'Your Daily Chausson Moment — today’s slate',
             shareText: 'I just decoded today’s secret menu at Chausson Reims 🧡 Can you wipe the slate too?',
             copied: 'Link copied — paste it anywhere!',
             copyFail: 'Copy this link: ',
@@ -131,8 +131,8 @@
             dateLocale: 'en-GB'
         },
         fr: {
-            pageTitle: 'Chausson Reims — L’ardoise décodée',
-            eyebrow: 'Salon de thé & cantine végétarienne · Reims',
+            pageTitle: 'Votre moment Chausson du jour — L’ardoise décodée',
+            eyebrow: 'Votre moment Chausson du jour',
             heroTitle: 'L’ardoise du jour',
             instruction: 'Écrite à la craie chaque matin. Effacez l’ardoise du bout du doigt pour découvrir le menu.',
             ringText: 'EFFACEZ-MOI · EFFACEZ-MOI · ',
@@ -160,15 +160,15 @@
             perk2Text: 'Options sans gluten & vegan',
             perk3Title: '24 h seulement',
             perk3Text: 'Nouvelle ardoise demain',
-            ctaTitle: 'Regardez le chef l’écrire en direct',
-            igLink: '@chaussonreims en story IG',
+            ctaTitle: 'Suivez-nous pour l’ardoise de demain',
+            igLink: '@chaussonreims sur Instagram',
             visitTitle: 'Passez nous dire bonjour',
             hours: 'Lun, mar, ven, sam & dim · 11h–19h',
             brunch: 'Brunch le week-end · 11h ou 13h30',
             footnote: 'Menu renouvelé chaque jour · Prix TTC · Allergènes : demandez-nous',
             tagline: 'La gourmandise, ça se partage !',
             canvasLabel: 'Photo de l’ardoise du jour, écrite à la main. Effacez-la pour révéler le menu.',
-            shareTitle: 'Chausson Reims — l’ardoise du jour',
+            shareTitle: 'Votre moment Chausson du jour — l’ardoise',
             shareText: 'Je viens de décoder le menu secret du jour chez Chausson Reims 🧡 À toi d’effacer l’ardoise !',
             copied: 'Lien copié — collez-le où vous voulez !',
             copyFail: 'Copiez ce lien : ',
@@ -635,12 +635,20 @@
         }
     }
 
+    var lastBarUpdate = 0;
     function updateProgress() {
         if (!grid || state.revealed) return;
         var ratio = gridCleared / grid.length;
+        if (ratio >= CONFIG.revealThreshold) {
+            reveal();
+            return;
+        }
+        // Repaint the progress bar at most ~10 times a second, not on every stroke
+        var now = performance.now();
+        if (now - lastBarUpdate < 100) return;
+        lastBarUpdate = now;
         var shown = clamp(ratio / CONFIG.revealThreshold, 0, 1);
         els.progressBar.style.transform = 'scaleX(' + shown.toFixed(3) + ')';
-        if (ratio >= CONFIG.revealThreshold) reveal();
     }
 
     /* -----------------------------------------------------
@@ -872,39 +880,71 @@
     function bindEvents() {
         var c = els.canvas;
 
-        if (window.PointerEvent) {
-            c.addEventListener('pointerdown', onPointerDown, { passive: false });
-            c.addEventListener('pointermove', onPointerMove, { passive: false });
-            c.addEventListener('pointerup', onPointerUp);
-            c.addEventListener('pointercancel', onPointerUp);
-            c.addEventListener('lostpointercapture', onPointerUp);
+        // FINGERS → Touch Events. On iPhones, pointer events can be cancelled
+        // mid-stroke when Safari decides the gesture is a scroll, which makes
+        // wiping stutter. Touch events with preventDefault() never get cancelled.
+        var TOUCH_ID = 'touch';
+        var activeTouch = null;
 
-            // iPhone Safari ignores `touch-action: none`, so the page would scroll while
-            // wiping. Cancelling the touch events stops the scroll; pointer events still fire.
-            var blockScroll = function (e) {
-                if (!state.revealed && e.cancelable) e.preventDefault();
+        var asPointer = function (t) {
+            return {
+                pointerId: TOUCH_ID,
+                pointerType: 'touch',
+                button: 0,
+                clientX: t.clientX,
+                clientY: t.clientY,
+                preventDefault: function () {}
             };
-            c.addEventListener('touchstart', blockScroll, { passive: false });
-            c.addEventListener('touchmove', blockScroll, { passive: false });
-        } else {
-            // Legacy fallback (very old iOS) — map touch to the same handlers
-            var wrap = function (handler) {
+        };
+        var findTouch = function (list) {
+            for (var i = 0; i < list.length; i++) {
+                if (list[i].identifier === activeTouch) return list[i];
+            }
+            return null;
+        };
+
+        c.addEventListener('touchstart', function (e) {
+            if (state.revealed) return;
+            if (e.cancelable) e.preventDefault();      // no scroll, no zoom, no long-press menu
+            if (activeTouch !== null) return;          // ignore a second finger
+            var t = e.changedTouches[0];
+            activeTouch = t.identifier;
+            onPointerDown(asPointer(t));
+        }, { passive: false });
+
+        c.addEventListener('touchmove', function (e) {
+            if (state.revealed) return;
+            if (e.cancelable) e.preventDefault();
+            var t = findTouch(e.changedTouches);
+            if (t) onPointerMove(asPointer(t));
+        }, { passive: false });
+
+        var endTouch = function (e) {
+            var t = findTouch(e.changedTouches);
+            if (!t) return;
+            activeTouch = null;
+            onPointerUp({ pointerId: TOUCH_ID });
+        };
+        c.addEventListener('touchend', endTouch);
+        c.addEventListener('touchcancel', endTouch);
+
+        // MOUSE and PEN → Pointer Events (touch input is handled above)
+        if (window.PointerEvent) {
+            var notTouch = function (handler) {
                 return function (e) {
-                    var touch = e.changedTouches[0];
-                    handler({
-                        pointerId: 1,
-                        pointerType: 'touch',
-                        button: 0,
-                        clientX: touch.clientX,
-                        clientY: touch.clientY,
-                        preventDefault: function () { e.preventDefault(); }
-                    });
+                    if (e.pointerType === 'touch') return;
+                    handler(e);
                 };
             };
-            c.addEventListener('touchstart', wrap(onPointerDown), { passive: false });
-            c.addEventListener('touchmove', wrap(onPointerMove), { passive: false });
-            c.addEventListener('touchend', wrap(onPointerUp));
-            c.addEventListener('touchcancel', wrap(onPointerUp));
+            c.addEventListener('pointerdown', notTouch(onPointerDown), { passive: false });
+            c.addEventListener('pointermove', notTouch(onPointerMove), { passive: false });
+            c.addEventListener('pointerup', notTouch(onPointerUp));
+            c.addEventListener('pointercancel', notTouch(onPointerUp));
+            c.addEventListener('lostpointercapture', notTouch(onPointerUp));
+        } else {
+            c.addEventListener('mousedown', function (e) { onPointerDown({ pointerId: 'mouse', pointerType: 'mouse', button: e.button, clientX: e.clientX, clientY: e.clientY, preventDefault: function () { e.preventDefault(); } }); });
+            window.addEventListener('mousemove', function (e) { onPointerMove({ pointerId: 'mouse', clientX: e.clientX, clientY: e.clientY, preventDefault: function () {} }); });
+            window.addEventListener('mouseup', function () { onPointerUp({ pointerId: 'mouse' }); });
         }
 
         c.addEventListener('contextmenu', function (e) { e.preventDefault(); });

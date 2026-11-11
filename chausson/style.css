@@ -356,6 +356,7 @@ a {
     z-index: 5;
     pointer-events: none;
     border-radius: inherit;
+    transform: translateZ(0);     /* own layer: the shadow isn't redrawn on every stroke */
     box-shadow:
         inset 0 0 0 1px rgba(0, 0, 0, 0.35),
         inset 0 4px 10px rgba(0, 0, 0, 0.35),
@@ -375,6 +376,10 @@ a {
     height: 100%;
     touch-action: none;           /* critical: no page scroll while wiping */
     -ms-touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transform: translateZ(0);     /* own GPU layer: wiping doesn't repaint the frame */
     cursor: grab;
     transition: opacity 0.7s var(--ease-out);
 }
